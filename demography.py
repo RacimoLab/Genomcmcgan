@@ -31,11 +31,11 @@ def constant(args):
     )
 
 
-def exponential(args):
+def exponential_model(args, print=False):
     """Single population model with sudden population size increase from N1 to N2
     at time T1 and exponential growth at time T2"""
 
-    genob, params, randomize, i, proposals = args
+    params, randomize, i, proposals = args
     necessary_params = ["mu", "r", "T1", "N1", "T2", "N2", "growth"]
     for p in necessary_params:
         if p not in list(params.keys()):
@@ -59,9 +59,21 @@ def exponential(args):
     # Time is given in generations unit (t/25)
     demographic_events = [
         msprime.PopulationParametersChange(time=0, initial_size=N0, growth_rate=growth),
-        msprime.PopulationParametersChange(time=T1, initial_size=N1),
+        msprime.PopulationParametersChange(time=T1, initial_size=N1, growth_rate=0),
         msprime.PopulationParametersChange(time=T2, initial_size=N2),
     ]
+
+    if print:
+        debugger = msprime.DemographyDebugger(Ne=N0, demographic_events=demographic_events)
+        debugger.print_history()
+
+    return demographic_events, mu, r
+
+
+def exponential(args):
+
+    genob = args[0]
+    demographic_events, mu, r = exponential_model(args[1:])
 
     return msprime.simulate(
         sample_size=genob.num_samples,
@@ -73,13 +85,13 @@ def exponential(args):
     )
 
 
-def zigzag(args):
+def zigzag_model(args, print=False):
     """Derived model used by Schiffels and Durbin (2014) and Terhorst and
     Terhorst, Kamm, and Song (2017) with periods of exponential growth and
     decline in a single population. Here, growth rates are changed to pop sizes.
     Schiffels and Durbin, 2014. https://doi.org/10.1038/ng.3015"""
 
-    genob, params, randomize, i, proposals = args
+    params, randomize, i, proposals = args
     necessary_params = [
         "mu",
         "r",
@@ -112,7 +124,7 @@ def zigzag(args):
         ]
 
     generation_time = 30
-    N0 = 14312
+    N0 = 71560
     n_ancient = N0 / 10
     t_ancient = 34133.318528
 
@@ -124,9 +136,21 @@ def zigzag(args):
         msprime.PopulationParametersChange(time=T4, initial_size=N4, population_id=0),
         msprime.PopulationParametersChange(time=T5, initial_size=N5, population_id=0),
         msprime.PopulationParametersChange(
-            time=t_ancient, initial_size=n_ancient, growth_rate=0, population_id=0
+            time=t_ancient, initial_size=n_ancient, population_id=0
         ),
     ]
+
+    if print:
+        debugger = msprime.DemographyDebugger(Ne=71560, demographic_events=demographic_events)
+        debugger.print_history()
+
+    return demographic_events, mu, r
+
+
+def zigzag(args):
+
+    genob = args[0]
+    demographic_events, mu, r = zigzag_model(args[1:])
 
     return msprime.simulate(
         sample_size=genob.num_samples,
@@ -136,6 +160,58 @@ def zigzag(args):
         recombination_rate=r,
         # random_seed=genob.seed,
     )
+
+
+def bottleneck_model(args, print=False):
+
+    params, randomize, i, proposals = args
+    necessary_params = ["mu", "r", "N0", "T1", "N1", "T2", "N2"]
+
+    for p in necessary_params:
+        if p not in list(params.keys()):
+            print(
+                "Invalid combination of parameters. Needed: "
+                "mu | r | N0 | T1 | N1 | T2 | N2"
+            )
+
+    if proposals:
+        mu, r, N0, T1, N1, T2, N2 = [
+            params[p].prop(i) if params[p].inferable else params[p].val
+            for p in necessary_params
+        ]
+    else:
+        mu, r, N0, T1, N1, T2, N2 = [
+            params[p].rand() if randomize else params[p].val for p in necessary_params
+        ]
+
+    # Infer the 3 pop sizes, where N0 = N2
+    demographic_events = [
+        msprime.PopulationParametersChange(time=0, initial_size=N0),
+        msprime.PopulationParametersChange(time=T1, initial_size=N1),
+        msprime.PopulationParametersChange(time=T2, initial_size=N2),
+    ]
+
+    if print:
+        debugger = msprime.DemographyDebugger(Ne=10000, demographic_events=demographic_events)
+        debugger.print_history()
+
+    return demographic_events, mu, r
+
+
+def bottleneck(args):
+
+    genob = args[0]
+    demographic_events, mu, r = bottleneck_model(args[1:])
+
+    return msprime.simulate(
+        sample_size=genob.num_samples,
+        demographic_events=demographic_events,
+        length=genob.seq_len,
+        mutation_rate=mu,
+        recombination_rate=r,
+        # random_seed=genob.seed,
+    )
+
 
 
 def ghost_migration(args):

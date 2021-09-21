@@ -7,12 +7,12 @@ import stdpopsim
 import zarr
 import random
 import bisect
-import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 import demography as dm
 from parameter import Parameter
 import demography as dm
+import numpy as np
 
 _ex = None
 
@@ -37,6 +37,8 @@ def do_sim(args):
         ts = dm.zigzag(args)
     elif genob.demo_model == "ghost_migration":
         ts = dm.ghost_migration(args)
+    elif genob.demo_model == "bottleneck":
+        ts = dm.bottleneck(args)
 
     if params["seqerr"].inferable:
         # Return resized matrix
@@ -704,7 +706,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "demographic_model",
         help="One population demographic model to use for simulations in msprime.",
-        choices=["constant", "exponential", "zigzag", "ghost_migration"],
+        choices=["constant", "exponential", "zigzag", "ghost_migration", "bottleneck"],
     )
 
     parser.add_argument(
@@ -808,7 +810,8 @@ if __name__ == "__main__":
     params_dict["seqerr"] = Parameter("seqerr", None, (0.00001, 0.01), inferable=False)
 
     if args.demographic_model == "constant":
-        params_dict["Ne"] = Parameter("Ne", 10000, (5000, 15000), inferable=False)
+        # Parameters for exponential model: FIX   BOUNDS      INFERABLE
+        params_dict["Ne"] = Parameter("Ne", 10000, (5000, 30000), inferable=True)
 
     elif args.demographic_model == "exponential":
         # Parameters for exponential model: FIX   BOUNDS      INFERABLE
@@ -816,22 +819,40 @@ if __name__ == "__main__":
         params_dict["N1"] = Parameter("N1", 10000, (1000, 30000), inferable=False)
         params_dict["T2"] = Parameter("T2", 3000, (1500, 5000), inferable=True)
         params_dict["N2"] = Parameter("N2", 5000, (1000, 30000), inferable=False)
-        params_dict["growth"] = Parameter("growth", 0.01, (0, 0.05), inferable=False)
+        params_dict["growth"] = Parameter("growth", 0.01, (0, 0.05), inferable=True)
+
+        # Print the built model to the user
+        dm.exponential_model([params_dict, False, 0, False], print=True)
 
     elif args.demographic_model == "zigzag":
         # Parameters for zigzag model:      FIX  BOUNDS      INFERABLE
         params_dict["T1"] = Parameter("T1", 33, (1, 80), inferable=False)
-        params_dict["N1"] = Parameter("N1", 6643, (1000, 30000), inferable=True)
+        params_dict["N1"] = Parameter("N1", 71560, (1000, 100000), inferable=True)
         params_dict["T2"] = Parameter("T2", 133, (81, 400), inferable=False)
-        params_dict["N2"] = Parameter("N2", 14312, (1000, 30000), inferable=True)
+        params_dict["N2"] = Parameter("N2", 7156, (1000, 100000), inferable=True)
         params_dict["T3"] = Parameter("T3", 533, (401, 1500), inferable=False)
-        params_dict["N3"] = Parameter("N3", 6643, (1000, 30000), inferable=True)
+        params_dict["N3"] = Parameter("N3", 71560, (1000, 100000), inferable=True)
         params_dict["T4"] = Parameter("T4", 2133, (1501, 5000), inferable=False)
-        params_dict["N4"] = Parameter("N4", 14312, (1000, 30000), inferable=True)
+        params_dict["N4"] = Parameter("N4", 7156, (1000, 100000), inferable=True)
         params_dict["T5"] = Parameter("T5", 8533, (5001, 10000), inferable=False)
-        params_dict["N5"] = Parameter("N5", 6643, (1000, 30000), inferable=True)
+        params_dict["N5"] = Parameter("N5", 71560, (1000, 100000), inferable=True)
+
+        # Print the built model to the user
+        dm.zigzag_model([params_dict, False, 0, False], print=True)
+
+    elif args.demographic_model == "bottleneck":
+        # Parameters for exponential model: FIX   BOUNDS      INFERABLE
+        params_dict["N0"] = Parameter("N0", 10000, (100, 30000), inferable=True)
+        params_dict["T1"] = Parameter("T1", 1000, (100, 1500), inferable=False)
+        params_dict["N1"] = Parameter("N1", 1000, (100, 30000), inferable=True)
+        params_dict["T2"] = Parameter("T2", 2000, (1500, 5000), inferable=False)
+        params_dict["N2"] = Parameter("N2", 10000, (100, 30000), inferable=True)
+
+        # Print the built model to the user
+        dm.bottleneck_model([params_dict, False, 0, False], print=True)
 
     elif args.demographic_model == "ghost_migration":
+        # Parameters for exponential model: FIX   BOUNDS      INFERABLE
         params_dict["T1"] = Parameter("T1", 1000, (500, 5000), inferable=False)
         params_dict["N1"] = Parameter("N1", 5000, (1000, 20000), inferable=False)
         params_dict["N2"] = Parameter("N2", 8000, (1000, 20000), inferable=False)
