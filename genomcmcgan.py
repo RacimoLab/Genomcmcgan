@@ -12,6 +12,7 @@ from training_utils import mcmc_diagnostic_plots, plot_disc_acc, plot_pair_evolu
 
 
 def run_genomcmcgan(
+    *,
     genobuilder,
     kernel_name,
     data_path,
@@ -21,6 +22,9 @@ def run_genomcmcgan(
     num_mcmc_burnin,
     seed,
     parallelism,
+    num_reps_Dx,
+    target_acc_rate,
+    thinning,
 ):
 
     np.random.seed(seed)
@@ -95,9 +99,9 @@ def run_genomcmcgan(
         mcmcgan.setup_mcmc(
             num_mcmc_results=num_mcmc_samples,
             num_burnin_steps=num_mcmc_burnin,
-            thinning=0,
-            num_reps_Dx=50,
-            target_acc_rate=0.5,
+            thinning=thinning,
+            num_reps_Dx=num_reps_Dx,
+            target_acc_rate=target_acc_rate,
         )
         mcmcgan.run_chain()
 
@@ -211,19 +215,46 @@ if __name__ == "__main__":
         type=int,
     )
 
+    parser.add_argument(
+        "-r",
+        "--num-reps-Dx",
+        help="Number of simulation replicates to assess discriminator inside the loss function.",
+        default=50,
+        type=int,
+    )
+
+    parser.add_argument(
+        "-a",
+        "--target-acc-rate",
+        help="Target acceptance rate.",
+        default=0.5,
+        type=float,
+    )
+
+    parser.add_argument(
+        "-t",
+        "--thinning",
+        help="Number of MCMC steps between MCMC samples",
+        default=0,
+        type=int,
+    )
+
     # Get argument values from parser
     args = parser.parse_args()
 
     run_genomcmcgan(
-        args.genobuilder,
-        args.kernel_name,
-        args.data_path,
-        args.discriminator_model,
-        args.epochs,
-        args.num_mcmc_samples,
-        args.num_mcmc_burnin,
-        args.seed,
-        args.parallelism,
+        genobuilder=args.genobuilder,
+        kernel_name=args.kernel_name,
+        data_path=args.data_path,
+        discriminator_model=args.discriminator_model,
+        epochs=args.epochs,
+        num_mcmc_samples=args.num_mcmc_samples,
+        num_mcmc_burnin=args.num_mcmc_burnin,
+        seed=args.seed,
+        parallelism=args.parallelism,
+        num_reps_Dx=args.num_reps_Dx,
+        target_acc_rate=args.target_acc_rate,
+        thinning=args.thinning,
     )
 
     # Command example:
