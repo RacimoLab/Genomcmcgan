@@ -96,7 +96,9 @@ def plot_pair_evolution(params, mcmc_kernel):
         with open(f"./results/{f}", "rb") as obj:
             i += 1
             samples, stats = pickle.load(obj)
-            if mcmc_kernel == "hmc":
+            if mcmc_kernel == "randomwalk":
+                stats_names = ["logprob", "diverging", "acceptance"]
+            elif mcmc_kernel == "hmc":
                 stats_names = ["logprob", "diverging", "acceptance", "step_size"]
             elif mcmc_kernel == "nuts":
                 stats_names = [
