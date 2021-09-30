@@ -26,6 +26,7 @@ def run_genomcmcgan(
     target_acc_rate,
     thinning,
     max_num_iters,
+    num_reps_discriminator,
 ):
 
     np.random.seed(seed)
@@ -43,7 +44,7 @@ def run_genomcmcgan(
         with open(data_path, "rb") as obj:
             xtrain, ytrain, xval, yval = pickle.load(obj)
     else:
-        xtrain, xval, ytrain, yval = genob.generate_data(num_reps=1000)
+        xtrain, xval, ytrain, yval = genob.generate_data(num_reps=num_reps_discriminator)
 
     # Initialize the MCMCGAN object and the Discriminator
     mcmcgan = MCMCGAN(genob, kernel_name, seed)
@@ -64,7 +65,7 @@ def run_genomcmcgan(
 
     start_t = time.time()
     means = [0.0]
-    accs = []
+    accuracies = []
     batch_size = 32
 
     while max_num_iters != mcmcgan.iter:
@@ -84,7 +85,7 @@ def run_genomcmcgan(
         valflow = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=True)
 
         # After wrapping the cnn model with DataParallel, -.module.- is necessary
-        accs.append(
+        accuracies.append(
             mcmcgan.discriminator.module.fit(
                 trainflow=trainflow,
                 valflow=valflow,
@@ -94,11 +95,11 @@ def run_genomcmcgan(
             )
         )
 
-        if len(accs) > 1:
-            plot_disc_acc(accs, mcmcgan.iter)
+        if len(accuracies) > 1:
+            plot_disc_acc(accuracies, mcmcgan.iter)
 
         # Check for convergence
-        if accs[-1] < 0.55:
+        if accuracies[-1] < 0.55:
             print("convergence")
             break
 
@@ -135,7 +136,7 @@ def run_genomcmcgan(
 
         # Generate new batches of real data and updated simulated data
         xtrain, xval, ytrain, yval = mcmcgan.genob.generate_data(
-            num_mcmc_samples, proposals=True
+            num_reps=num_reps_discriminator, proposals=True
         )
 
         print(f"A single iteration of the MCMC-GAN took {time.time()-t} seconds")
@@ -200,6 +201,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-N",
+        "--num-reps-discriminator",
+        help="Number of samples to train the discriminator on in each GAN iteration",
+        type=int,
+        default=10000,
+    )
+
+    parser.add_argument(
         "-b",
         "--num-mcmc-burnin",
         help="Number of MCMC burn-in steps in each training iteration of MCMCGAN",
@@ -234,7 +243,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-a",
         "--target-acc-rate",
-        help="Target acceptance rate.",
+        help="Target acceptance rate (only for HMC and NUTS MCMC kernels).",
         default=0.5,
         type=float,
     )
@@ -272,6 +281,7 @@ if __name__ == "__main__":
         target_acc_rate=args.target_acc_rate,
         thinning=args.thinning,
         max_num_iters=args.max_num_iters,
+        num_reps_discriminator=args.num_reps_discriminator,
     )
 
     # Command example:

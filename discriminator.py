@@ -100,6 +100,7 @@ class Discriminator(nn.Module):
         epochs: Number of iterations through the training dataset
         lr: Learning rate for gradient descent with Adam
         """
+        print("Training discriminator")
 
         optimizer = torch.optim.Adam(self.parameters(), lr)
         lossf = nn.BCELoss()

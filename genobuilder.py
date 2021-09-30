@@ -209,6 +209,7 @@ class Genobuilder:
 
     @num_reps.setter
     def num_reps(self, n):
+        print(f"genob.num_reps = {n}")
         self._num_reps = n
 
     @params.setter
@@ -280,7 +281,14 @@ class Genobuilder:
         """
 
         # Prepare arguments and empty matrix
-        args = [(self, params, randomize, i, proposals) for i in range(self.num_reps)]
+        if proposals:
+            # sample from the accepted MCMC proposals in the previous iteration
+            num_proposals = len(self.inferable_params[0].proposals)
+            indexes = np.random.RandomState().randint(num_proposals, size=self.num_reps)
+        else:
+            # indexes aren't used
+            indexes = [-1] * self.num_reps
+        args = [(self, params, randomize, i, proposals) for i in indexes]
         mat = np.zeros((self.num_reps, self.num_samples, self.fixed_dim))
 
         # Executor for multiprocessing
@@ -395,7 +403,7 @@ class Genobuilder:
 
         self.num_reps = num_reps
         # Generate genotype matrices from the data with params to infer
-        print(f"generating {num_reps} genotype matrices from {self.source}")
+        print(f"generating {num_reps} genotype matrices with fixed params using {self.source}")
         if self.source == "stdpopsim":
             gen1 = self.simulate_stdpopsim(
                 engine="msprime",
@@ -412,7 +420,7 @@ class Genobuilder:
             gen1 = self.simulate_msprime(self.params)
 
         # Generate genotype matrices from the simulated data
-        print(f"generating {num_reps} genotype matrices from msprime")
+        print(f"generating {num_reps} genotype matrices with randomised params using msprime")
         gen0 = self.simulate_msprime(self.params, randomize=True, proposals=proposals)
 
         # Assemble data and labels
