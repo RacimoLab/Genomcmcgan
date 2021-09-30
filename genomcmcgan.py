@@ -25,6 +25,7 @@ def run_genomcmcgan(
     num_reps_Dx,
     target_acc_rate,
     thinning,
+    max_num_iters,
 ):
 
     np.random.seed(seed)
@@ -61,10 +62,10 @@ def run_genomcmcgan(
     for p in mcmcgan.genob.params.values():
         print(f"{p.name} inferable: {p.inferable}")
 
-    max_num_iters = 20
     start_t = time.time()
     means = [0.0]
     accs = []
+    batch_size = 32
 
     while max_num_iters != mcmcgan.iter:
 
@@ -73,18 +74,24 @@ def run_genomcmcgan(
         t = time.time()
 
         # Prepare tensors and data loaders with the data and labels
-        xtrain = torch.Tensor(xtrain).float().to(device)
-        ytrain = torch.Tensor(ytrain).float().unsqueeze(-1).to(device)
+        xtrain = torch.Tensor(xtrain).float()
+        ytrain = torch.Tensor(ytrain).float().unsqueeze(-1)
         trainset = torch.utils.data.TensorDataset(xtrain, ytrain)
-        trainflow = torch.utils.data.DataLoader(trainset, 32, True)
-        xval = torch.Tensor(xval).float().to(device)
-        yval = torch.Tensor(yval).float().unsqueeze(-1).to(device)
+        trainflow = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        xval = torch.Tensor(xval).float()
+        yval = torch.Tensor(yval).float().unsqueeze(-1)
         valset = torch.utils.data.TensorDataset(xval, yval)
-        valflow = torch.utils.data.DataLoader(valset, 32, True)
+        valflow = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=True)
 
         # After wrapping the cnn model with DataParallel, -.module.- is necessary
         accs.append(
-            mcmcgan.discriminator.module.fit(trainflow, valflow, epochs, lr=0.0001)
+            mcmcgan.discriminator.module.fit(
+                trainflow=trainflow,
+                valflow=valflow,
+                epochs=epochs,
+                lr=0.0001,
+                device=device,
+            )
         )
 
         if len(accs) > 1:
@@ -116,11 +123,12 @@ def run_genomcmcgan(
             mcmcgan.jointplot_samples()
 
         # Calculate means and standard deviations for the next MCMC sampling step
-        means = np.mean(mcmcgan.samples, axis=1)
+        #means = np.mean(mcmcgan.samples, axis=1)
+        medians = np.median(mcmcgan.samples, axis=1)
         stds = np.std(mcmcgan.samples, axis=1)
         for i, p in enumerate(mcmcgan.genob.inferable_params):
             # Update the MCMC stats for each parameter
-            print(f"{p.name} samples with mean {means[i]} and std {stds[i]}")
+            print(f"{p.name} samples with median {medians[i]} and std {stds[i]}")
             p.step_size = sample_stats["step_size"][i][-1].numpy()
             p.proposals = mcmcgan.samples[i]
             p.init = mcmcgan.samples[i][-1]
@@ -134,7 +142,7 @@ def run_genomcmcgan(
         print(f"In total, it has been running for {time.time()-start_t} seconds")
 
     print(f"The estimates obtained after {mcmcgan.iter} iterations are:")
-    print(means)
+    print(medians)
     plot_pair_evolution(mcmcgan.genob.inferable_params, mcmcgan.kernel_name)
 
 
@@ -234,8 +242,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t",
         "--thinning",
-        help="Number of MCMC steps between MCMC samples",
+        help="Number of MCMC steps between MCMC samples.",
         default=0,
+        type=int,
+    )
+
+    parser.add_argument(
+        "-i",
+        "--max-num-iters",
+        help="Maximum number of generator-discriminator iterations.",
+        default=20,
         type=int,
     )
 
@@ -255,6 +271,7 @@ if __name__ == "__main__":
         num_reps_Dx=args.num_reps_Dx,
         target_acc_rate=args.target_acc_rate,
         thinning=args.thinning,
+        max_num_iters=args.max_num_iters,
     )
 
     # Command example:

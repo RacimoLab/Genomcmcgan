@@ -53,6 +53,7 @@ class MCMCGAN:
 
     def setup_mcmc(
         self,
+        *,
         num_mcmc_results,
         num_burnin_steps,
         thinning,
