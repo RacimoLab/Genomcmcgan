@@ -93,13 +93,14 @@ class Discriminator(nn.Module):
         y_prob = y_prob > 0.5
         return (y_true == y_prob).sum().item() / y_true.size(0)
 
-    def fit(self, trainflow, valflow, epochs, lr, model_selection=False):
+    def fit(self, *, trainflow, valflow, epochs, lr, device, model_selection=False):
         """Train the discriminator model with the Binary Cross-Entropy loss.
         trainflow: PyTorch data loader for the training dataset
         valflow: PyTorch data loader for the validation dataset
         epochs: Number of iterations through the training dataset
         lr: Learning rate for gradient descent with Adam
         """
+        print("Training discriminator")
 
         optimizer = torch.optim.Adam(self.parameters(), lr)
         lossf = nn.BCELoss()
@@ -113,6 +114,8 @@ class Discriminator(nn.Module):
 
             # For each batch of training data
             for i, (inputs, labels) in enumerate(trainflow, 1):
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
                 # Zero the parameter gradients
                 optimizer.zero_grad()
@@ -144,6 +147,9 @@ class Discriminator(nn.Module):
             with torch.no_grad():
                 # For each batch of validation data
                 for j, (genmats, labels) in enumerate(valflow, 1):
+                    genmats = genmats.to(device)
+                    labels = labels.to(device)
+
                     # Compute model predictions, compute loss and stats
                     preds = self(genmats)
                     val_loss += lossf(preds, labels).item()
